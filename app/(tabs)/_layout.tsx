@@ -1,33 +1,107 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Tabs, useRouter } from "expo-router";
+import Entypo from "../../node_modules/@expo/vector-icons/Entypo";
+import Feather from "../../node_modules/@expo/vector-icons/Feather";
+import FontAwesome6 from "../../node_modules/@expo/vector-icons/FontAwesome6";
+import Ionicons from "../../node_modules/@expo/vector-icons/Ionicons";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+  const router = useRouter();
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+    <Tabs screenOptions={{ headerShown: false }}>
       <Tabs.Screen
-        name="index"
+        name="(home)"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <Entypo
+                name="home"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="search"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <Feather
+                name="search"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="add"
+        listeners={{
+          tabPress(e) {
+            e.preventDefault();
+            router.navigate("/modal");
+          },
+        }}
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <FontAwesome6
+                name="add"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="activity"
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <Feather
+                name="heart"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="[username]"
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <Ionicons
+                name="person"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
+        }}
+      />
+      <Tabs.Screen
+        name="following"
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon(props) {
+            return (
+              <Ionicons
+                name="person"
+                size={24}
+                color={props.focused ? "black" : "gray"}
+              />
+            );
+          },
         }}
       />
     </Tabs>
