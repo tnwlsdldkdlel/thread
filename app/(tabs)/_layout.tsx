@@ -1,10 +1,53 @@
+import Entypo from "@expo/vector-icons/Entypo";
+import Feather from "@expo/vector-icons/Feather";
+import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { Tabs, useRouter } from "expo-router";
-import { useState } from "react";
-import { Modal, Text, TouchableOpacity, View } from "react-native";
-import Entypo from "../../node_modules/@expo/vector-icons/Entypo";
-import Feather from "../../node_modules/@expo/vector-icons/Feather";
-import FontAwesome6 from "../../node_modules/@expo/vector-icons/FontAwesome6";
-import Ionicons from "../../node_modules/@expo/vector-icons/Ionicons";
+import { useRef, useState } from "react";
+import {
+  Animated,
+  Modal,
+  Pressable,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+const AnimatedTabBarButton = (props: BottomTabBarButtonProps) => {
+  const { children, onPress, style, ...restProps } = props;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  return (
+    <Pressable
+      {...(restProps as any)}
+      onPress={onPress}
+      onPressIn={() => {
+        Animated.spring(scale, {
+          toValue: 1.2,
+          speed: 200,
+          useNativeDriver: true,
+        }).start();
+      }}
+      onPressOut={() => {
+        Animated.spring(scale, {
+          toValue: 1,
+          speed: 200,
+          useNativeDriver: true,
+        }).start();
+      }}
+      style={[
+        { flex: 1, justifyContent: "center", alignItems: "center" },
+        style,
+      ]}
+      android_ripple={{ borderless: false, BorderRadius: 0 }}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+};
 
 export default function TabLayout() {
   const router = useRouter();
@@ -21,7 +64,13 @@ export default function TabLayout() {
 
   return (
     <>
-      <Tabs backBehavior="history" screenOptions={{ headerShown: false }}>
+      <Tabs
+        backBehavior="history"
+        screenOptions={{
+          headerShown: false,
+          tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
+        }}
+      >
         <Tabs.Screen
           name="(home)"
           options={{
