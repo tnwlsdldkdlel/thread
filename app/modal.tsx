@@ -1,9 +1,13 @@
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
+import * as MediaLibrary from "expo-media-library";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   FlatList,
   Image,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -21,6 +25,32 @@ interface Thread {
   imageUris: string[];
 }
 
+export function ListFooter({
+  canAddThread,
+  addThread,
+}: {
+  canAddThread: boolean;
+  addThread: () => void;
+}) {
+  return (
+    <View style={styles.listFooter}>
+      <View style={styles.listFooterAvatar}>
+        <Image
+          source={require("../assets/images/avatar.png")}
+          style={styles.avatarSmall}
+        />
+      </View>
+      <View>
+        <Pressable onPress={addThread} style={styles.input}>
+          <Text style={{ color: canAddThread ? "#999" : "#aaa" }}>
+            Add to thread
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function Modal() {
   const router = useRouter();
   const [threads, setThreads] = useState<Thread[]>([
@@ -30,6 +60,7 @@ export default function Modal() {
   const [replyOption, setReplyOption] = useState("Anyone");
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [editingHashtagId, setEditingHashtagId] = useState<string | null>(null);
 
   const replyOptions = ["Anyone", "Profiles you follow", "Mentioned only"];
 
@@ -37,7 +68,21 @@ export default function Modal() {
 
   const handlePost = () => {};
 
-  const updateThreadText = (id: string, text: string) => {};
+  const updateThreadText = (id: string, text: string) => {
+    setThreads((prevThreads) =>
+      prevThreads.map((thread) =>
+        thread.id === id ? { ...thread, text } : thread
+      )
+    );
+  };
+
+  const updateThreadHashtag = (id: string, hashtag: string) => {
+    setThreads((prevThreads) =>
+      prevThreads.map((thread) =>
+        thread.id === id ? { ...thread, hashtag } : thread
+      )
+    );
+  };
 
   const canAddThread = (threads.at(-1)?.text.trim().length ?? 0) > 0;
   const canPost = threads.every((thread) => thread.text.trim().length > 0);
@@ -46,15 +91,98 @@ export default function Modal() {
 
   const addLocationToThread = (id: string, location: [number, number]) => {};
 
-  const removeThread = (id: string) => {};
+  const removeThread = (id: string) => {
+    setThreads((prevThreads) =>
+      prevThreads.filter((thread) => thread.id !== id)
+    );
+  };
 
-  const pickImage = async (id: string) => {};
+  const pickImage = async (id: string) => {
+    let { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      try {
+        await ImagePicker.getMediaLibraryPermissionsAsync();
+      } catch (error) {
+        Linking.openSettings();
+      }
+    }
 
-  const takePhoto = async (id: string) => {};
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos", "livePhotos"],
+      allowsMultipleSelection: true,
+      selectionLimit: 5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      result.assets.forEach((asset) => {
+        setThreads((prevThreads) =>
+          prevThreads.map((thread) =>
+            thread.id === id
+              ? { ...thread, imageUris: [...thread.imageUris, asset.uri] }
+              : thread
+          )
+        );
+      });
+    }
+  };
+
+  const takePhoto = async (id: string) => {
+    let { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      try {
+        await ImagePicker.getCameraPermissionsAsync();
+      } catch (error) {
+        Linking.openSettings();
+      }
+    }
+
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images", "videos", "livePhotos"],
+      allowsMultipleSelection: true,
+      selectionLimit: 5,
+    });
+
+    status = (await MediaLibrary.requestPermissionsAsync()).status;
+    if (status === "granted" && result.assets?.[0].uri) {
+      MediaLibrary.saveToLibraryAsync(result.assets[0].uri);
+    }
+
+    if (!result.canceled && result.assets.length > 0) {
+      const uri = result.assets[0].uri;
+      setThreads((prevThreads) =>
+        prevThreads.map((thread) =>
+          thread.id === id
+            ? { ...thread, imageUris: [...thread.imageUris, uri] }
+            : thread
+        )
+      );
+    }
+  };
 
   const removeImageFromThread = (id: string, uriToRemove: string) => {};
 
-  const getMyLocation = async (id: string) => {};
+  const getMyLocation = async (id: string) => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      try {
+        await Location.getForegroundPermissionsAsync();
+      } catch (error) {
+        Linking.openSettings();
+      }
+    }
+
+    let location = await Location.getCurrentPositionAsync({});
+    setThreads((prevThreads) =>
+      prevThreads.map((thread) =>
+        thread.id === id
+          ? {
+              ...thread,
+              location: [location.coords.latitude, location.coords.longitude],
+            }
+          : thread
+      )
+    );
+  };
 
   const renderThreadItem = ({
     item,
@@ -73,7 +201,42 @@ export default function Modal() {
       </View>
       <View style={styles.contentContainer}>
         <View style={styles.userInfoContainer}>
-          <Text style={styles.username}>zerohch0</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              flex: 1,
+              marginRight: 8,
+            }}
+          >
+            <Text style={styles.username}>zerohch0</Text>
+            <Text style={{ color: "#999", marginLeft: 5, marginRight: 8 }}>
+              {">"}
+            </Text>
+            {editingHashtagId === item.id ? (
+              <TextInput
+                style={styles.topicInput}
+                value={item.hashtag || ""}
+                placeholder="주제 추가"
+                placeholderTextColor="#999"
+                onChangeText={(hashtag) =>
+                  updateThreadHashtag(item.id, hashtag)
+                }
+                autoFocus
+                onBlur={() => setEditingHashtagId(null)}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => !isPosting && setEditingHashtagId(item.id)}
+              >
+                {item.hashtag ? (
+                  <Text style={styles.topicText}>#{item.hashtag}</Text>
+                ) : (
+                  <Text style={styles.addTopicPlaceholder}>주제 추가</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
           {index > 0 && (
             <TouchableOpacity
               onPress={() => removeThread(item.id)}
@@ -164,11 +327,36 @@ export default function Modal() {
         <Text style={styles.title}>New Thread</Text>
         <View style={styles.headerRightPlaceholder} />
       </View>
+      <FlatList
+        data={threads}
+        renderItem={renderThreadItem}
+        keyExtractor={(item) => item.id}
+        ListFooterComponent={
+          <ListFooter
+            canAddThread={canAddThread}
+            addThread={() => {
+              if (canAddThread) {
+                setThreads([
+                  ...threads,
+                  { id: Date.now().toString(), text: "", imageUris: [] },
+                ]);
+              }
+            }}
+          />
+        }
+        style={styles.list}
+        contentContainerStyle={{ paddingBottom: 100, backgroundColor: "#ddd" }}
+        keyboardShouldPersistTaps="handled"
+      />
       <View style={[styles.footer, { paddingBottom: insets.bottom }]}>
         <Pressable onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
           <Text style={styles.footerText}>{replyOption} can reply & quote</Text>
         </Pressable>
-        <Pressable style={[styles.postButton]} disabled={isPosting}>
+        <Pressable
+          style={[styles.postButton, styles.postButtonDisabled]}
+          disabled={isPosting}
+          onPress={handlePost}
+        >
           <Text style={styles.postButtonText}>Post</Text>
         </Pressable>
       </View>
@@ -369,5 +557,24 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 14,
     color: "#8e8e93",
+  },
+  topicContainer: {},
+  topicText: {
+    color: "#007AFF",
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  addTopicContainer: {},
+  addTopicPlaceholder: {
+    fontSize: 15,
+    color: "#999",
+    lineHeight: 20,
+  },
+  topicInput: {
+    fontSize: 15,
+    color: "#999",
+    fontWeight: "500",
+    paddingVertical: 0,
+    flex: 1,
   },
 });
