@@ -8,6 +8,7 @@ import {
   FlatList,
   Image,
   Linking,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -51,7 +52,7 @@ export function ListFooter({
   );
 }
 
-export default function Modal() {
+export default function NewThreadModal() {
   const router = useRouter();
   const [threads, setThreads] = useState<Thread[]>([
     { id: Date.now().toString(), text: "", imageUris: [] },
@@ -84,8 +85,12 @@ export default function Modal() {
     );
   };
 
-  const canAddThread = (threads.at(-1)?.text.trim().length ?? 0) > 0;
-  const canPost = threads.every((thread) => thread.text.trim().length > 0);
+  const canAddThread =
+    (threads.at(-1)?.text.trim().length ?? 0) > 0 ||
+    (threads.at(-1)?.imageUris.length ?? 0) > 0;
+  const canPost = threads.every(
+    (thread) => thread.text.trim().length > 0 || thread.imageUris.length > 0
+  );
 
   const addImageToThread = (id: string, uri: string) => {};
 
@@ -100,11 +105,9 @@ export default function Modal() {
   const pickImage = async (id: string) => {
     let { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      try {
-        await ImagePicker.getMediaLibraryPermissionsAsync();
-      } catch (error) {
-        Linking.openSettings();
-      }
+      alert("사진을 선택하려면 미디어 라이브러리 접근 권한이 필요합니다.");
+      Linking.openSettings();
+      return;
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -127,27 +130,29 @@ export default function Modal() {
   };
 
   const takePhoto = async (id: string) => {
-    let { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      try {
-        await ImagePicker.getCameraPermissionsAsync();
-      } catch (error) {
-        Linking.openSettings();
-      }
+    const { status: cameraStatus } =
+      await ImagePicker.requestCameraPermissionsAsync();
+    if (cameraStatus !== "granted") {
+      alert("사진을 찍으려면 카메라 접근 권한이 필요합니다.");
+      Linking.openSettings();
+      return;
     }
 
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: ["images", "videos", "livePhotos"],
-      allowsMultipleSelection: true,
-      selectionLimit: 5,
     });
 
-    status = (await MediaLibrary.requestPermissionsAsync()).status;
-    if (status === "granted" && result.assets?.[0].uri) {
-      MediaLibrary.saveToLibraryAsync(result.assets[0].uri);
+    if (result.canceled) {
+      return;
     }
 
-    if (!result.canceled && result.assets.length > 0) {
+    const { status: mediaLibraryStatus } =
+      await MediaLibrary.requestPermissionsAsync();
+    if (mediaLibraryStatus === "granted" && result.assets?.[0].uri) {
+      await MediaLibrary.saveToLibraryAsync(result.assets[0].uri);
+    }
+
+    if (result.assets && result.assets.length > 0) {
       const uri = result.assets[0].uri;
       setThreads((prevThreads) =>
         prevThreads.map((thread) =>
@@ -159,16 +164,25 @@ export default function Modal() {
     }
   };
 
-  const removeImageFromThread = (id: string, uriToRemove: string) => {};
+  const removeImageFromThread = (id: string, uriToRemove: string) => {
+    setThreads((prevThreads) =>
+      prevThreads.map((thread) =>
+        thread.id === id
+          ? {
+              ...thread,
+              imageUris: thread.imageUris.filter((uri) => uri !== uriToRemove),
+            }
+          : thread
+      )
+    );
+  };
 
   const getMyLocation = async (id: string) => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      try {
-        await Location.getForegroundPermissionsAsync();
-      } catch (error) {
-        Linking.openSettings();
-      }
+      alert("위치 정보를 추가하려면 위치 접근 권한이 필요합니다.");
+      Linking.openSettings();
+      return;
     }
 
     let location = await Location.getCurrentPositionAsync({});
@@ -353,13 +367,59 @@ export default function Modal() {
           <Text style={styles.footerText}>{replyOption} can reply & quote</Text>
         </Pressable>
         <Pressable
-          style={[styles.postButton, styles.postButtonDisabled]}
-          disabled={isPosting}
+          style={[
+            styles.postButton,
+            (!canPost || isPosting) && styles.postButtonDisabled,
+          ]}
+          disabled={!canPost || isPosting}
           onPress={handlePost}
         >
           <Text style={styles.postButtonText}>Post</Text>
         </Pressable>
       </View>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={isDropdownVisible}
+        onRequestClose={() => setIsDropdownVisible(false)}
+      >
+        <View style={{ flex: 1 }}>
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setIsDropdownVisible(false)}
+          >
+            <View
+              style={[
+                styles.dropdownContainer,
+                { marginBottom: insets.bottom + 5 },
+              ]}
+            >
+              {replyOptions.map((option, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.dropdownOption,
+                    replyOption === option && styles.selectedOption,
+                  ]}
+                  onPress={() => {
+                    setReplyOption(option);
+                    setIsDropdownVisible(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.dropdownOptionText,
+                      replyOption === option && styles.selectedOptionText,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }
