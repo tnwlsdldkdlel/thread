@@ -1,13 +1,38 @@
-import { router } from "expo-router";
 import "expo-router/entry";
+import { createServer, Response, Server } from "miragejs";
 
-if (window.server) {
-  server.shutdown();
+declare global {
+  interface Window {
+    server?: Server;
+  }
 }
 
-window.server = createServer({
-  router() {
-    return {
-        movie
-    }
+if (__DEV__) {
+  if (window.server) {
+    window.server.shutdown();
   }
+
+  window.server = createServer({
+    routes() {
+      this.post("/login", (schema, request) => {
+        const { username, password } = JSON.parse(request.requestBody);
+
+        if (username === "ooooohsu" && password === "password") {
+          return {
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+            user: {
+              id: "ooooohsu",
+            },
+          };
+        } else {
+          return new Response(
+            401,
+            { "Content-Type": "application/json" },
+            { message: "Invalid credentials" }
+          );
+        }
+      });
+    },
+  });
+}

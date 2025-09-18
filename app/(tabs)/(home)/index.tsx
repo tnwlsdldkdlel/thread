@@ -1,3 +1,4 @@
+import { useAuthStore } from "@/app/auth";
 import { BlurView } from "expo-blur";
 import { usePathname, useRouter } from "expo-router";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -6,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function index() {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoggedIn = false;
+  const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken && s.user));
 
   return (
     <SafeAreaView style={styles.container}>

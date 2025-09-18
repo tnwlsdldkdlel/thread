@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuthStore } from "../auth";
 
 const AnimatedTabBarButton = (props: BottomTabBarButtonProps) => {
   const { children, onPress, style, ...restProps } = props;
@@ -51,15 +52,18 @@ const AnimatedTabBarButton = (props: BottomTabBarButtonProps) => {
 
 export default function TabLayout() {
   const router = useRouter();
-  const isLoggedIn = true;
+  const isLoggedIn = useAuthStore((s) => Boolean(s.accessToken && s.user));
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const openLoginModal = () => {
     setIsLoginModalOpen(true);
   };
 
-  const closeLoginModal = () => {
+  const closeLoginModal = () => {};
+
+  const toLoginPage = () => {
     setIsLoginModalOpen(false);
+    router.push("/login");
   };
 
   return (
@@ -207,7 +211,9 @@ export default function TabLayout() {
           }}
         >
           <View style={{ backgroundColor: "white", padding: 20 }}>
-            <Text>로그인모달</Text>
+            <Pressable onPress={toLoginPage}>
+              <Text>로그인모달</Text>
+            </Pressable>
             <TouchableOpacity onPress={closeLoginModal}>
               <Ionicons name="close" size={24} color="black"></Ionicons>
             </TouchableOpacity>
